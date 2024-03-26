@@ -30,6 +30,16 @@ public class PlayerController : MonoBehaviour, IDamageable
     private bool facingRight = true;
     #endregion
 
+    #region animation
+    private Animator anim;
+
+    // Enumerations allow you to create a collection of related constants.
+    private enum MovementState { idle, movement, jump, fall, attack, death }
+    private MovementState state;
+
+    private bool immovable = false;
+    #endregion
+
     [SerializeField]
     private int health = 100;
 
@@ -40,8 +50,10 @@ public class PlayerController : MonoBehaviour, IDamageable
     // Start is called before the first frame update
     void Start()
     {
+        // search for the instance of the component on the object the script is present or on all child objects
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        anim = GetComponentInChildren<Animator>();
 
         /* Ideally you want to check if the components you are getting are not null e.g. 
          * 
@@ -55,20 +67,70 @@ public class PlayerController : MonoBehaviour, IDamageable
     // Update is called once per frame
     void Update()
     {
-        // get the input from Left and Right Arrows or A and D
-        // to change input keys go to "Edit<Project Settings< Input Manager"
-        direction = Input.GetAxis("Horizontal");
-        // apply the input to transform component
-        // don't forget Time.deltaTime to be framerate independent!
-        transform.Translate(Vector2.right * direction * speed * Time.deltaTime);
+        if (!immovable) {
+            // get the input from Left and Right Arrows or A and D
+            // to change input keys go to "Edit<Project Settings< Input Manager"
+            direction = Input.GetAxis("Horizontal");
+            // we set the speed paramter from the blend tree in the animator by assignin our input
+            // since the speed parametere should only be a positive number, but Input.GetAxis() returns as a value between 0.1 and -0.1, we ue the absolute value
+            anim.SetFloat("speed", Mathf.Abs(direction));
+            // apply the input to transform component
+            // don't forget Time.deltaTime to be framerate independent!
+            transform.Translate(Vector2.right * direction * speed * Time.deltaTime);
 
-        Flip();
+            Flip();
+        }
 
         if (Input.GetKeyDown(KeyCode.UpArrow) && isGrounded) {
             // apply force as an impulse to the rigidbody of the player
             rb.AddForce(Vector2.up * jumpPower, ForceMode2D.Impulse);
             isGrounded = false;
         }
+
+        UpdateAnimations();
+    }
+
+    // change the state of our character and assign the state to the animator
+    private void UpdateAnimations()
+    {
+        // if we get an input in the x direction we want to display a movement animation, otherwise idle
+        if (direction != 0)
+        {
+            state = MovementState.movement;
+        }
+        else
+        {
+            state = MovementState.idle;
+        }
+
+        // we check if the velocity of our character is going upward or downward and adjust the animation accordingly
+        if (rb.velocity.y > 0.1f)
+        {
+            state = MovementState.jump;
+        }
+        else if (rb.velocity.y < -0.1f)
+        {
+            state = MovementState.fall;
+        }
+
+        if (isGrounded && Input.GetKeyDown(KeyCode.Space))
+        {
+            state = MovementState.attack;
+        }
+
+        if (health <= 0) {
+            state = MovementState.death;
+        }
+
+        // our script state is assigned to the parameter with the name "state" inside the animator
+        // this is used as a condition to transition between different animtions
+        anim.SetInteger("state", (int)state);
+    }
+
+    // used as an animationEvent to stop the characters movement
+    public void SwitchImmovable()
+    {
+        immovable = !immovable;
     }
 
     // triggers when player collides with another collider
@@ -91,7 +153,7 @@ public class PlayerController : MonoBehaviour, IDamageable
 
     private void Flip() {
         // check which direction the player is facing and if the direction pressed is the opposite of facing direction
-        if (facingRight && direction < 0f || !facingRight && direction > 0f) {
+        if (facingRight && direction > 0f || !facingRight && direction < 0f) {
             //invert the direction and flip the sprite on the x-Axis
             facingRight = !facingRight;
             spriteRenderer.flipX = facingRight;
@@ -104,7 +166,8 @@ public class PlayerController : MonoBehaviour, IDamageable
 
         if (health <= 0)
         {
-            Destroy(gameObject);
+            // disabled so animation is played
+            //Destroy(gameObject);
         } 
     }
 }
