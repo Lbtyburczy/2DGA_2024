@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using TMPro;
 
 /// <summary>
 /// This class is an example of a SceneManager
@@ -38,6 +39,10 @@ public class ScenesManager : MonoBehaviour
     public enum Scene { 
         UIScene,
         SpineSkinChange
+    }
+
+    public void QuitGame() {
+        Application.Quit();
     }
 
     public void LoadMenu() {
